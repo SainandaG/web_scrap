@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Speed YouTube Downloader</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-secondary: #94a3b8;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 { margin-bottom: 2rem; }
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            background-color: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:disabled { background-color: #475569; }
+        .preview { margin-top: 1.5rem; display: none; }
+        .preview img { width: 100%; border-radius: 0.5rem; }
+        .progress-container {
+            margin-top: 1.5rem;
+            display: none;
+        }
+        .progress-bar {
+            height: 10px;
+            background: #334155;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #status { margin-top: 1rem; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>YouTube Downloader</h1>
+        <div class="input-group">
+            <input type="text" id="url" placeholder="Paste YouTube URL here...">
+            <button id="fetchBtn">Fetch Info</button>
+        </div>
+        
+        <div id="preview" class="preview">
+            <img id="thumbnail" src="" alt="Thumbnail">
+            <h3 id="videoTitle"></h3>
+            <div class="input-group">
+                <select id="resolution" style="flex:1; padding:0.75rem; border-radius:0.5rem; background:#0f172a; color:white; border:1px solid #334155;">
+                    <option value="Highest Quality">Highest Quality</option>
+                </select>
+                <button id="downloadBtn">Download</button>
+            </div>
+        </div>
+
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+            <p id="status">Starting download...</p>
+        </div>
+    </div>
+
+    <script>
+        const fetchBtn = document.getElementById('fetchBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const urlInput = document.getElementById('url');
+        const preview = document.getElementById('preview');
+        const status = document.getElementById('status');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+
+        fetchBtn.onclick = async () => {
+            const url = urlInput.value;
+            if (!url) return alert('Enter a URL');
+            
+            fetchBtn.disabled = true;
+            status.innerText = 'Fetching info...';
+
+            try {
+                const res = await fetch('/api/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('thumbnail').src = data.thumbnail;
+                document.getElementById('videoTitle').innerText = data.title;
+                
+                const resSelect = document.getElementById('resolution');
+                resSelect.innerHTML = '';
+                data.resolutions.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r;
+                    opt.innerText = r;
+                    resSelect.appendChild(opt);
+                });
+
+                preview.style.display = 'block';
+                status.innerText = 'Ready to download';
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                fetchBtn.disabled = false;
+            }
+        };
+
+        downloadBtn.onclick = async () => {
+            const url = urlInput.value;
+            const resVal = document.getElementById('resolution').value;
+            
+            downloadBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            
+            try {
+                const res = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, resolution: resVal })
+                });
+                const data = await res.json();
+                
+                const pollProgress = setInterval(async () => {
+                    const pRes = await fetch(`/api/progress/${data.video_id}`);
+                    const pData = await pRes.json();
+                    progressFill.style.width = pData.progress + '%';
+                    status.innerText = `Downloading... ${Math.round(pData.progress)}%`;
+
+                    if (pData.progress >= 100) {
+                        clearInterval(pollProgress);
+                        status.innerText = 'Download Finished! Check your downloads folder on the server.';
+                        downloadBtn.disabled = false;
+                    }
+                }, 1000);
+            } catch (err) {
+                alert(err.message);
+                downloadBtn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
