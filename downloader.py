@@ -43,7 +43,7 @@ class YouTubeDownloader:
             pass
         return t_str
 
-    def get_video_info(self, url, browser_name=None):
+    def get_video_info(self, url, browser_name=None, cookiefile_path=None):
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -54,6 +54,9 @@ class YouTubeDownloader:
         if browser_name:
             ydl_opts['cookiesfrombrowser'] = (browser_name,)
             print(f"DEBUG: Fetching info using cookies from {browser_name}")
+        elif cookiefile_path and os.path.exists(cookiefile_path):
+            ydl_opts['cookiefile'] = cookiefile_path
+            print(f"DEBUG: Using custom cookiefile {cookiefile_path}")
         elif os.path.exists('cookies.txt'):
             ydl_opts['cookiefile'] = 'cookies.txt'
 
@@ -102,7 +105,7 @@ class YouTubeDownloader:
                 print(f"DEBUG: Error in get_video_info: {e}")
                 return {'error': str(e)}
 
-    def download(self, url, resolution="Highest Quality", start_time=None, end_time=None, browser_name=None):
+    def download(self, url, resolution="Highest Quality", start_time=None, end_time=None, browser_name=None, cookiefile_path=None):
         outtmpl = os.path.join(self.download_dir, '%(title).100s.%(ext)s')
         if start_time or end_time:
             # Add timestamps to filename to avoid "already downloaded" skip
@@ -141,9 +144,12 @@ class YouTubeDownloader:
         if browser_name:
             ydl_opts['cookiesfrombrowser'] = (browser_name,)
             print(f"DEBUG: Using cookies from {browser_name}")
+        elif cookiefile_path and os.path.exists(cookiefile_path):
+            ydl_opts['cookiefile'] = cookiefile_path
+            print(f"DEBUG: Using custom cookiefile {cookiefile_path}")
         elif os.path.exists('cookies.txt'):
             ydl_opts['cookiefile'] = 'cookies.txt'
-            print("DEBUG: Using cookies.txt for authentication")
+            print("DEBUG: Using default cookies.txt for authentication")
 
         if start_time or end_time:
             from yt_dlp.utils import download_range_func

@@ -30,21 +30,45 @@ def index():
 
 @app.route('/api/info', methods=['POST'])
 def get_info():
-    url = request.json.get('url')
+    url = request.form.get('url')
     if not url:
-        return jsonify({"error": "No URL provided"}), 400
+        # Fallback for old JSON requests
+        if request.is_json:
+            url = request.json.get('url')
+        if not url:
+            return jsonify({"error": "No URL provided"}), 400
     
+    cookiefile_path = None
+    if 'cookies' in request.files:
+        file = request.files['cookies']
+        if file.filename != '':
+            cookiefile_path = os.path.join(DOWNLOADS_DIR, f"temp_cookies_{os.urandom(4).hex()}.txt")
+            file.save(cookiefile_path)
+
     downloader = YouTubeDownloader()
-    info = downloader.get_video_info(url)
+    info = downloader.get_video_info(url, cookiefile_path=cookiefile_path)
+    
+    # Clean up temp cookie file
+    if cookiefile_path and os.path.exists(cookiefile_path):
+        try: os.remove(cookiefile_path)
+        except: pass
+
     return jsonify(info)
 
 @app.route('/api/download', methods=['POST'])
 def download_video():
-    data = request.json
-    url = data.get('url')
-    resolution = data.get('resolution', 'Best')
-    start_time = data.get('start_time')
-    end_time = data.get('end_time')
+    url = request.form.get('url')
+    resolution = request.form.get('resolution', 'Best')
+    start_time = request.form.get('start_time')
+    end_time = request.form.get('end_time')
+    
+    # Fallback for old JSON requests
+    if not url and request.is_json:
+        data = request.json
+        url = data.get('url')
+        resolution = data.get('resolution', 'Best')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
     
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -52,6 +76,13 @@ def download_video():
     video_id = url.split('=')[-1] # Simple ID extraction
     progress_storage[video_id] = 0
     
+    cookiefile_path = None
+    if 'cookies' in request.files:
+        file = request.files['cookies']
+        if file.filename != '':
+            cookiefile_path = os.path.join(DOWNLOADS_DIR, f"dl_cookies_{video_id}_{os.urandom(4).hex()}.txt")
+            file.save(cookiefile_path)
+
     def run_download():
         downloader = YouTubeDownloader(
             progress_callback=lambda p: progress_callback(p, video_id),
@@ -59,7 +90,13 @@ def download_video():
         )
         # Point to the correct directory
         downloader.download_dir = DOWNLOADS_DIR
-        filename = downloader.download(url, resolution, start_time, end_time)
+        filename = downloader.download(url, resolution, start_time, end_time, cookiefile_path=cookiefile_path)
+        
+        # Clean up temp cookie file
+        if cookiefile_path and os.path.exists(cookiefile_path):
+            try: os.remove(cookiefile_path)
+            except: pass
+
         if filename:
             progress_storage[video_id + "_file"] = filename
             progress_storage[video_id] = 100 # Ensure it hits 100%

@@ -107,6 +107,17 @@
 <body>
     <div class="container">
         <h1>YouTube Downloader</h1>
+
+        <div
+            style="margin-bottom: 1.5rem; text-align: left; background: #334155; padding: 1rem; border-radius: 0.5rem; font-size: 0.9rem;">
+            <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">Bypass Bot Detection
+                (Optional)</label>
+            <input type="file" id="cookieFile" accept=".txt" style="margin-bottom: 0.5rem;">
+            <div style="color: #94a3b8; font-size: 0.8rem;">
+                If Vercel is blocked, please upload a <b>cookies.txt</b> file exported from your browser.
+            </div>
+        </div>
+
         <div class="input-group">
             <input type="text" id="url" placeholder="Paste YouTube URL here...">
             <button id="fetchBtn">Fetch Info</button>
@@ -146,16 +157,22 @@
 
         fetchBtn.onclick = async () => {
             const url = urlInput.value;
+            const cookieFile = document.getElementById('cookieFile').files[0];
             if (!url) return alert('Enter a URL');
 
             fetchBtn.disabled = true;
             status.innerText = 'Fetching info...';
 
+            const formData = new FormData();
+            formData.append('url', url);
+            if (cookieFile) {
+                formData.append('cookies', cookieFile);
+            }
+
             try {
                 const res = await fetch('/api/info', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: formData
                 });
                 const data = await res.json();
 
@@ -189,15 +206,22 @@
         downloadBtn.onclick = async () => {
             const url = urlInput.value;
             const resVal = document.getElementById('resolution').value;
+            const cookieFile = document.getElementById('cookieFile').files[0];
 
             downloadBtn.disabled = true;
             progressContainer.style.display = 'block';
 
+            const formData = new FormData();
+            formData.append('url', url);
+            formData.append('resolution', resVal);
+            if (cookieFile) {
+                formData.append('cookies', cookieFile);
+            }
+
             try {
                 const res = await fetch('/api/download', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, resolution: resVal })
+                    body: formData
                 });
                 const data = await res.json();
 
