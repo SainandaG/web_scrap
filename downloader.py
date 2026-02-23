@@ -43,11 +43,17 @@ class YouTubeDownloader:
             pass
         return t_str
 
-    def get_video_info(self, url):
+    def get_video_info(self, url, browser_name=None):
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
         }
+        if browser_name:
+            ydl_opts['cookiesfrombrowser'] = (browser_name,)
+            print(f"DEBUG: Fetching info using cookies from {browser_name}")
+        elif os.path.exists('cookies.txt'):
+            ydl_opts['cookiefile'] = 'cookies.txt'
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
@@ -93,7 +99,7 @@ class YouTubeDownloader:
                 print(f"DEBUG: Error in get_video_info: {e}")
                 return {'error': str(e)}
 
-    def download(self, url, resolution="Highest Quality", start_time=None, end_time=None):
+    def download(self, url, resolution="Highest Quality", start_time=None, end_time=None, browser_name=None):
         outtmpl = os.path.join(self.download_dir, '%(title).100s.%(ext)s')
         if start_time or end_time:
             # Add timestamps to filename to avoid "already downloaded" skip
@@ -118,11 +124,19 @@ class YouTubeDownloader:
             'outtmpl': outtmpl,
             'progress_hooks': [self._progress_hook],
             'merge_output_format': 'mp4',
-            'ffmpeg_location': r'C:\ProgramData\chocolatey\bin\ffmpeg.exe',
+            'ffmpeg_location': r'C:\ProgramData\chocolatey\bin\ffmpeg.exe' if os.name == 'nt' else 'ffmpeg',
             'quiet': False,
             'no_warnings': False,
             'restrictedfilenames': True,
         }
+
+        # Handle Cookies for bot detection bypass
+        if browser_name:
+            ydl_opts['cookiesfrombrowser'] = (browser_name,)
+            print(f"DEBUG: Using cookies from {browser_name}")
+        elif os.path.exists('cookies.txt'):
+            ydl_opts['cookiefile'] = 'cookies.txt'
+            print("DEBUG: Using cookies.txt for authentication")
 
         if start_time or end_time:
             from yt_dlp.utils import download_range_func
@@ -139,8 +153,9 @@ class YouTubeDownloader:
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
-                ydl.download([url])
-                return True
+                info_dict = ydl.extract_info(url, download=True)
+                downloaded_file = ydl.prepare_filename(info_dict)
+                return os.path.basename(downloaded_file)
             except Exception as e:
                 import traceback
                 print(f"DEBUG: Download error: {e}")

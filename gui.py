@@ -87,17 +87,30 @@ class App(ctk.CTk):
         self.end_entry = ctk.CTkEntry(self.crop_frame, placeholder_text="00:00:10", width=100, state="disabled")
         self.end_entry.grid(row=0, column=4, padx=(2, 10), pady=10, sticky="w")
 
-        # Progress & Status Frame
-        self.status_frame = ctk.CTkFrame(self)
-        self.status_frame.grid(row=6, column=0, padx=20, pady=(10, 20), sticky="nsew")
-        self.status_frame.grid_columnconfigure(0, weight=1)
+        # Authentication & Status Frame
+        self.auth_status_frame = ctk.CTkFrame(self)
+        self.auth_status_frame.grid(row=6, column=0, padx=20, pady=(10, 20), sticky="nsew")
+        self.auth_status_frame.grid_columnconfigure(1, weight=1)
 
-        self.progress_bar = ctk.CTkProgressBar(self.status_frame)
-        self.progress_bar.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        # Authentication Section
+        self.auth_label = ctk.CTkLabel(self.auth_status_frame, text="Auth (Bypass Bot):")
+        self.auth_label.grid(row=0, column=0, padx=10, pady=10)
+
+        self.browser_var = ctk.StringVar(value="None")
+        self.browser_dropdown = ctk.CTkOptionMenu(
+            self.auth_status_frame, 
+            values=["None", "chrome", "firefox", "edge", "brave", "opera", "safari"],
+            variable=self.browser_var,
+            width=120
+        )
+        self.browser_dropdown.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+
+        self.progress_bar = ctk.CTkProgressBar(self.auth_status_frame)
+        self.progress_bar.grid(row=1, column=0, columnspan=3, padx=20, pady=(10, 5), sticky="ew")
         self.progress_bar.set(0)
 
-        self.status_label = ctk.CTkLabel(self.status_frame, text="Ready", font=ctk.CTkFont(size=12))
-        self.status_label.grid(row=1, column=0, padx=20, pady=5)
+        self.status_label = ctk.CTkLabel(self.auth_status_frame, text="Ready", font=ctk.CTkFont(size=12))
+        self.status_label.grid(row=2, column=0, columnspan=3, padx=20, pady=5)
 
         self.current_video_info = None
 
@@ -120,10 +133,14 @@ class App(ctk.CTk):
         
         self.fetch_button.configure(state="disabled")
         self.update_status("Fetching video information...")
-        threading.Thread(target=self.fetch_info, args=(url,), daemon=True).start()
+        
+        browser = self.browser_var.get()
+        browser_name = None if browser == "None" else browser
+        
+        threading.Thread(target=self.fetch_info, args=(url, browser_name), daemon=True).start()
 
-    def fetch_info(self, url):
-        info = self.downloader.get_video_info(url)
+    def fetch_info(self, url, browser_name=None):
+        info = self.downloader.get_video_info(url, browser_name=browser_name)
         if "error" in info:
             self.after(0, lambda: self.update_status(f"Error: {info['error']}"))
             self.after(0, lambda: self.fetch_button.configure(state="normal"))
@@ -192,14 +209,17 @@ class App(ctk.CTk):
         self.fetch_button.configure(state="disabled")
         self.progress_bar.set(0)
         
-        threading.Thread(target=self.run_download, args=(url, resolution, start_time, end_time), daemon=True).start()
+        browser = self.browser_var.get()
+        browser_name = None if browser == "None" else browser
+        
+        threading.Thread(target=self.run_download, args=(url, resolution, start_time, end_time, browser_name), daemon=True).start()
 
-    def run_download(self, url, resolution, start_time, end_time):
-        success = self.downloader.download(url, resolution, start_time, end_time)
+    def run_download(self, url, resolution, start_time, end_time, browser_name=None):
+        success = self.downloader.download(url, resolution, start_time, end_time, browser_name=browser_name)
         self.after(0, lambda: self.download_button.configure(state="normal"))
         self.after(0, lambda: self.fetch_button.configure(state="normal"))
         
-        if success:
+        if success is not False:
             self.after(0, lambda: self.update_status("Download Finished! Saved in 'downloads' folder."))
         else:
             self.after(0, lambda: self.update_status("Download failed. See logs."))

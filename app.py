@@ -6,7 +6,12 @@ from downloader import YouTubeDownloader
 app = Flask(__name__)
 
 # Ensure downloads directory exists
-DOWNLOADS_DIR = os.path.join(os.getcwd(), 'downloads')
+# Use /tmp for Vercel compatibility
+if os.environ.get('VERCEL'):
+    DOWNLOADS_DIR = '/tmp/downloads'
+else:
+    DOWNLOADS_DIR = os.path.join(os.getcwd(), 'downloads')
+
 if not os.path.exists(DOWNLOADS_DIR):
     os.makedirs(DOWNLOADS_DIR)
 
@@ -52,10 +57,23 @@ def download_video():
             progress_callback=lambda p: progress_callback(p, video_id),
             status_callback=lambda s: status_callback(s, video_id)
         )
-        downloader.download(url, resolution, start_time, end_time)
+        # Point to the correct directory
+        downloader.download_dir = DOWNLOADS_DIR
+        filename = downloader.download(url, resolution, start_time, end_time)
+        if filename:
+            progress_storage[video_id + "_file"] = filename
+            progress_storage[video_id] = 100 # Ensure it hits 100%
 
     threading.Thread(target=run_download).start()
     return jsonify({"status": "Started", "video_id": video_id})
+
+@app.route('/api/download_file/<video_id>')
+def download_file(video_id):
+    filename = progress_storage.get(video_id + "_file")
+    if not filename:
+        return jsonify({"error": "File not found or still processing"}), 404
+    
+    return send_from_directory(DOWNLOADS_DIR, filename, as_attachment=True)
 
 @app.route('/api/progress/<video_id>')
 def get_progress(video_id):

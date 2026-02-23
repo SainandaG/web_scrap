@@ -10,3 +10,4 @@ downloads/
 *.webm
 *.part
 *.ytdl
+.vercel
