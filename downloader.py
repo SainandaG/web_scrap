@@ -47,6 +47,8 @@ class YouTubeDownloader:
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'referer': 'https://www.youtube.com/',
         }
         if browser_name:
             ydl_opts['cookiesfrombrowser'] = (browser_name,)
@@ -128,6 +130,9 @@ class YouTubeDownloader:
             'quiet': False,
             'no_warnings': False,
             'restrictedfilenames': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'referer': 'https://www.youtube.com/',
+            'n_sig_check': False, # Avoid some signature check issues
         }
 
         # Handle Cookies for bot detection bypass

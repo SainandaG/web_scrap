@@ -142,7 +142,11 @@ class App(ctk.CTk):
     def fetch_info(self, url, browser_name=None):
         info = self.downloader.get_video_info(url, browser_name=browser_name)
         if "error" in info:
-            self.after(0, lambda: self.update_status(f"Error: {info['error']}"))
+            err_msg = info['error']
+            if "not a bot" in err_msg.lower() or "sign in" in err_msg.lower():
+                self.after(0, lambda: self.update_status("Bot Detected! Select your browser in 'Auth' dropdown below."))
+            else:
+                self.after(0, lambda: self.update_status(f"Error: {err_msg[:50]}..."))
             self.after(0, lambda: self.fetch_button.configure(state="normal"))
             return
 
@@ -222,7 +226,13 @@ class App(ctk.CTk):
         if success is not False:
             self.after(0, lambda: self.update_status("Download Finished! Saved in 'downloads' folder."))
         else:
-            self.after(0, lambda: self.update_status("Download failed. See logs."))
+            # Note: status_label is already updated by status_callback in downloader.download
+            # but we can improve the message if it's a bot error
+            current_status = self.status_label.cget("text")
+            if "not a bot" in current_status.lower() or "sign in" in current_status.lower():
+                self.after(0, lambda: self.update_status("Bot Detected! Please select your browser in the Auth dropdown."))
+            else:
+                self.after(0, lambda: self.update_status("Download failed. See logs or select browser."))
 
 if __name__ == "__main__":
     app = App()

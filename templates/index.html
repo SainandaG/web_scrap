@@ -176,7 +176,11 @@
                 preview.style.display = 'block';
                 status.innerText = 'Ready to download';
             } catch (err) {
-                alert(err.message);
+                if (err.message.toLowerCase().includes('not a bot') || err.message.toLowerCase().includes('sign in')) {
+                    alert("Bot Detected! Vercel is blocked by YouTube. Please use the local GUI version with the 'Auth' dropdown to download this video.");
+                } else {
+                    alert(err.message);
+                }
             } finally {
                 fetchBtn.disabled = false;
             }
